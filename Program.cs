@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Data.SqlClient;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using TODOArray.Models;
@@ -6,22 +7,16 @@ using static System.Console;
 
 namespace TODOArray
 {
-    class Program
-    {
-        static void Main(string[] args)
+     class Program
+     {
+        static string connectionString = "Server=.;Database=TODO;Integrated Security=True";
+
+        static List<Task> taskList = new List<Task>();
+        
+
+        public static void Main(string[] args)
         {
-            // Task[] (array) -------------------------------------------------
-            // - Sekventiell
-            // - Vi kommer åt enskilda element via numeriskt index (te.x. [0])
-            // - Storleken är statiskt (kan inte förändras i efterhand, dvs. när den väl skapats)
-
-            // List<Task> -----------------------------------------------------
-            // - Sekventiell
-            // - Vi kommer åt enskilda element via numeriskt index (te.x. [0])
-            // - Storlek är dynamisk (kan föränras i efterhand)
-
-            List<Task> taskList = new List<Task>();
-
+            
             CursorVisible = false;
 
             bool applicationRunning = true;
@@ -39,46 +34,14 @@ namespace TODOArray
                 switch (input.Key)
                 {
                     case ConsoleKey.D1:
-                        {
-                            Write("Description: ");
-
-                            string description = ReadLine();
-
-                            Write("Due Date: ");
-
-                            DateTime dueDate = DateTime.Parse(ReadLine());
-
-                            Task task = new Task(description: description, dueDate: dueDate);
-
-                            taskList.Add(task);
-                            
-                            Clear();
-
-                            WriteLine("Task added");
-
-                            Thread.Sleep(2000); // 2 sec
-                        }
-
+                        
+                        AddTask();
+                        
                         break;
 
                     case ConsoleKey.D2:
 
-                        WriteLine("Task                      Due Date");
-                        WriteLine("------------------------------------------");
-
-                        //for (int i = 0; i < tasks.Length; i++)
-                        foreach (Task task in taskList)
-                        {
-                            //if (tasks[i] == null) continue;
-                            if (task == null) continue;
-
-                            // null condition-operatorn
-                            //WriteLine($"Description: {tasks[i].description}");
-                            //WriteLine($"Due Date: {tasks[i].dueDate}");
-                            WriteLine($"{task.description}                     {task.dueDate}");
-                        }
-
-                        ReadLine();
+                        ListTasks();
 
                         break;
 
@@ -92,86 +55,138 @@ namespace TODOArray
                 Clear();
 
             } while (applicationRunning);
+        }
+        private static void AddTask()
+        {
+            Write("Description: ");
 
+            string description = ReadLine();
 
-            // --------------------------------------------------------------
-            // ARRAY
-            // --------------------------------------------------------------
+            Write("Due Date: ");
 
-            //Task[] tasks = new Task[2];
+            DateTime dueDate = DateTime.Parse(ReadLine());
 
-            //int nextTaskIndex = 0;
+            Task task = new Task(description: description, dueDate: dueDate);
 
-            //CursorVisible = false;
+            string sql = @"
+                    INSERT INTO Tasks (
+                       Description, 
+                       DueDate
+                       ) VALUES (
+                        @Description,  
+                        @DueDate
+                        )";
+            using SqlConnection connection = new(connectionString);
+            using SqlCommand command = new(sql, connection);
 
-            //bool applicationRunning = true;
+            command.Parameters.AddWithValue("@Description", task.Description);
+            command.Parameters.AddWithValue("@DueDate", task.DueDate);
 
-            //do
-            //{
-            //    WriteLine("1. Add task");
-            //    WriteLine("2. List tasks");
-            //    WriteLine("3. Exit");
+            connection.Open();
 
-            //    ConsoleKeyInfo input = ReadKey(true);
+            command.ExecuteNonQuery();
 
-            //    Clear();
+            connection.Close();
 
-            //    switch (input.Key)
-            //    {
-            //        case ConsoleKey.D1:
-            //            {
-            //                Write("Description: ");
+            NotifyWithDelay("Task added", clear: true);
 
-            //                string description = ReadLine();
+            Clear();
 
-            //                Write("Due Date: ");
+        }
 
-            //                DateTime dueDate = DateTime.Parse(ReadLine());
+        private static void NotifyWithDelay(string message, bool clear, int delayInSeconds = 2000)
+        {
+            if(clear) Clear();
 
-            //                Task task = new Task(description: description, dueDate: dueDate);
+            WriteLine("Task added");
 
-            //                tasks[nextTaskIndex++] = task;
+            Thread.Sleep(delayInSeconds);
+        }
 
-            //                Clear();
+        private static void ListTasks()
+        {
+            List<Task> taskList = FetchTasks();
 
-            //                WriteLine("Task added");
+            WriteLine("ID     Task                      Due Date");
+            WriteLine("------------------------------------------");
 
-            //                Thread.Sleep(2000); // 2 sec
-            //            }
+            //for (int i = 0; i < tasks.Length; i++)
+            foreach (Task task in taskList)
+            {
+                //if (tasks[i] == null) continue;
+                if (task == null) continue;
 
-            //            break;
+                // null condition-operatorn
+                //WriteLine($"Description: {tasks[i].description}");
+                //WriteLine($"Due Date: {tasks[i].dueDate}");
+                WriteLine($"{task.Id}  {task.Description}                     {task.DueDate}");
+            }
 
-            //        case ConsoleKey.D2:
+            DeleteTask();
 
-            //            WriteLine("Task                      Due Date");
-            //            WriteLine("------------------------------------------");
+            ReadLine();
+        }
 
-            //            //for (int i = 0; i < tasks.Length; i++)
-            //            foreach (Task task in tasks)
-            //            {
-            //                //if (tasks[i] == null) continue;
-            //                if (task == null) continue;
+        private static void DeleteTask()
+        {
+            WriteLine("\n(D)elete");
 
-            //                // null condition-operatorn
-            //                //WriteLine($"Description: {tasks[i].description}");
-            //                //WriteLine($"Due Date: {tasks[i].dueDate}");
-            //                WriteLine($"{task.description}                     {task.dueDate}");
-            //            }
+            var userInput = ReadKey(true);
 
-            //            ReadLine();
+            if (userInput.Key == ConsoleKey.D)
+            {
+                Write("ID: ");
+                string idToDelete = ReadLine();
 
-            //            break;
+                string sql = @"
+                    DELETE FROM 
+                          Tasks  
+                    WHERE 
+                          Id=" + idToDelete
+               ;
 
-            //        case ConsoleKey.D3:
+                using SqlConnection connection = new(conectionString);
+                using SqlCommand command = new(sql, connection);
 
-            //            applicationRunning = false;
+                connection.Open();
 
-            //            break;
-            //    }
+                command.ExecuteNonQuery();
 
-            //    Clear();
+                WriteLine($"You succesfully deleted ID: {idToDelete}");
+            }
+        }
 
-            //} while (applicationRunning);
+        private static List<Task> FetchTasks()
+        {
+            string sql = @"
+                SELECT Id,
+                       Description,
+                       DueDate
+                  FROM Tasks
+
+            ";
+
+            using SqlConnection connection = new(conectionString);
+            using SqlCommand command = new(sql, connection);
+
+            connection.Open();
+
+            //SqlDataReader reader =
+            var reader = command.ExecuteReader();
+
+            var taskList = new List<Task>();
+
+            while (reader.Read())
+            {
+                var task = new Task(
+                    id: (int)reader["Id"],
+                    description: (string)reader["Description"],
+                    dueDate: (DateTime)reader["DueDate"]);
+
+                taskList.Add(task);
+            }
+
+            return taskList;
         }
     }
 }

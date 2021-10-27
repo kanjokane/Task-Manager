@@ -4,15 +4,26 @@ namespace TODOArray.Models
 {
     class Task
     {
-        // fält
-        public string description;
-        public DateTime dueDate;
+        // Properties
+
+        public int Id { get; }
+        public string Description { get; }
+        public DateTime DueDate { get; }
 
         // Konstruktor, t.ex.  new Task("Tvätta bilen", new DateTime(2021, 9, 30))
         public Task(string description, DateTime dueDate)
         {
-            this.description = description;
-            this.dueDate = dueDate;
+            Description = description;
+            DueDate = dueDate;
+            
+        }
+
+        public Task(int id, string description, DateTime dueDate)
+        {
+            Description = description;
+            DueDate = dueDate;
+            Id = id;
+
         }
     }
 }
